@@ -27,7 +27,6 @@
 6. [Đóng góp](#dong-gop)
 7. [Giấy phép](#giay-phep)
 8. [Liên hệ](#lien-he)
-9. [Ghi nhận](#ghi-nhan)
 
 <a id="gioi-thieu"></a>
 
@@ -133,13 +132,5 @@ Dự án chưa công bố giấy phép sử dụng. Thông tin này sẽ đượ
 ## Liên hệ
 
 Kho mã nguồn: [thepiece27/Wolfari](https://github.com/thepiece27/Wolfari).
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
-
-<a id="ghi-nhan"></a>
-
-## Ghi nhận
-
-Bố cục README được điều chỉnh từ [Best-README-Template](https://github.com/othneildrew/Best-README-Template). Nội dung và phạm vi sản phẩm dựa trên [Wolfari SRS v1.0](docs/Wolfari_SRS_v1.0_Duyet.docx).
 
 <p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
