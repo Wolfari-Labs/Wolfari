@@ -8,6 +8,8 @@ Bộ tài liệu ngày 17/09/2026 thay thế trạng thái "chờ duyệt" của
 2. [Wolfari ERD Database v1.1](../Wolfari_ERD_Database_v1.1_ChinhThuc.docx) chốt mô hình vật lý của 5 database và quy tắc sở hữu dữ liệu.
 3. [Wolfari DDL API Event Specification v1.0](../Wolfari_DDL_API_Event_Specification_v1.0.docx) chốt DDL, REST, gRPC và event contract ở mức thiết kế.
 
+Hai tài liệu ERD và DDL/API/Event có nhắc đến bản thay thế SRS v2.2 từ mục 10. File đó chưa có trong kho mã nguồn; hiện `docs/` chỉ chứa SRS v2.0. Trước khi triển khai nghiệp vụ dựa trên các mục bị thay thế, cần bổ sung hoặc xác nhận phiên bản SRS áp dụng. Xem [kết quả đối chiếu file](../database/validation.md).
+
 Khi có khác biệt, SRS quyết định hành vi nghiệp vụ; ERD quyết định cách biểu diễn dữ liệu; đặc tả DDL/API/Event quyết định hợp đồng triển khai tương ứng. Thay đổi sau này phải cập nhật đồng bộ tài liệu, migration, contract và kiểm thử có liên quan.
 
 ## Artifact trong kho mã nguồn

@@ -1,3 +1,3 @@
 # Hợp đồng giao tiếp
 
-Sau khi thiết kế API và danh mục sự kiện được duyệt, thư mục này sẽ chứa hợp đồng Protobuf và sự kiện bất đồng bộ. Hiện package chưa xuất hợp đồng nghiệp vụ nào.
+Thiết kế REST, gRPC và sự kiện đã được mô tả trong [bộ tài liệu hiện hành](../../docs/architecture/design-baseline.md). Thư mục này dành cho các hợp đồng Protobuf và sự kiện có thể dùng trong mã nguồn; hiện package chưa xuất hợp đồng nghiệp vụ nào.

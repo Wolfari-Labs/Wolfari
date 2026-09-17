@@ -4,19 +4,21 @@ Thư mục này mô tả cách các artifact database được tổ chức trong
 
 ## Vị trí artifact
 
-| Artifact | Vị trí |
-| --- | --- |
-| Bootstrap thủ công cho DBA | `infrastructure/postgres/bootstrap-databases.sql` |
-| Migration Identity | `apps/identity-service/migrations/V001.sql` |
-| Migration Trip Workspace | `apps/trip-workspace-service/migrations/V001.sql` |
+| Artifact                      | Vị trí                                                 |
+| ----------------------------- | ------------------------------------------------------ |
+| Bootstrap thủ công cho DBA    | `infrastructure/postgres/bootstrap-databases.sql`      |
+| Migration Identity            | `apps/identity-service/migrations/V001.sql`            |
+| Migration Trip Workspace      | `apps/trip-workspace-service/migrations/V001.sql`      |
 | Migration Travel Intelligence | `apps/travel-intelligence-service/migrations/V001.sql` |
-| Migration Finance | `apps/finance-service/migrations/V001.sql` |
-| Migration Automation | `apps/automation-service/migrations/V001.sql` |
-| Truy vấn kiểm tra schema | `infrastructure/postgres/inspect-schema.sql` |
-| Test constraint | `apps/<service>/tests/database/V001_constraints.sql` |
-| ERD Mermaid | `docs/erd/*.mmd` |
+| Migration Finance             | `apps/finance-service/migrations/V001.sql`             |
+| Migration Automation          | `apps/automation-service/migrations/V001.sql`          |
+| Truy vấn kiểm tra schema      | `infrastructure/postgres/inspect-schema.sql`           |
+| Test constraint               | `apps/<service>/tests/database/V001_constraints.sql`   |
+| ERD Mermaid                   | `docs/erd/*.mmd`                                       |
 
-Ba tài liệu DOCX nguồn được giữ trực tiếp trong `docs/`.
+Ba tài liệu DOCX nguồn được giữ trực tiếp trong `docs/`. Các thư mục `docs/sql/`, `docs/tests/`, `docs/diagrams/` và `docs/documents/` của bộ bàn giao cũ không còn được dùng: SQL, test và Mermaid đã nằm tại các vị trí sở hữu ở bảng trên.
+
+[`SHA256SUMS.txt`](SHA256SUMS.txt) ghi checksum cho các file ở bố cục hiện tại, với đường dẫn tính từ gốc repository. [`SHA256SUMS.source-bundle.txt`](SHA256SUMS.source-bundle.txt) giữ nguyên checksum của bộ bàn giao ban đầu để đối chiếu nguồn. Hai DOCX hiện tại không trùng byte với bản ghi trong checksum nguồn và file SRS v2.2 được nhắc ở đó chưa có; xem [trạng thái kiểm tra](validation.md). Không coi checksum cũ là xác nhận tính toàn vẹn của ba DOCX hiện có.
 
 ## Bootstrap PostgreSQL
 

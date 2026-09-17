@@ -1,6 +1,6 @@
 # Hướng dẫn khởi tạo kho mã nguồn Wolfari
 
-Kho mã nguồn này chứa bộ khung kỹ thuật theo [Wolfari SRS v1.0](../Wolfari_SRS_v1.0_Duyet.docx) và yêu cầu khởi tạo dự án. Hiện chưa có API, RPC, sự kiện, thực thể hoặc bảng dữ liệu nghiệp vụ. ERD vật lý vẫn chờ duyệt.
+Kho mã nguồn này bắt đầu từ bước khởi tạo kỹ thuật. Bộ tài liệu hiện hành gồm [SRS v2.0](../Wolfari_SRS_v2.0_ChinhThuc.docx), [ERD v1.1](../Wolfari_ERD_Database_v1.1_ChinhThuc.docx) và [đặc tả DDL/API/Event v1.0](../Wolfari_DDL_API_Event_Specification_v1.0.docx). Thiết kế đã có, nhưng kho mã nguồn chưa triển khai API, RPC, event handler hay thực thể nghiệp vụ. Năm file migration SQL đã được đặt trong service tương ứng và chưa chạy trên PostgreSQL.
 
 ## Kiến trúc kho mã nguồn
 
@@ -14,20 +14,22 @@ Kho mã nguồn này chứa bộ khung kỹ thuật theo [Wolfari SRS v1.0](../W
 | `apps/automation-service`          | Sẽ sở hữu thông báo, nhắc việc, lịch tác vụ và theo dõi giá.                                                                                          |
 | `apps/export-worker`               | Tiến trình xuất tệp chạy nền; **không phải** dịch vụ nghiệp vụ thứ sáu và không có cơ sở dữ liệu nghiệp vụ riêng.                                     |
 | `packages/common`                  | Chỉ chứa cấu hình, kiểm tra dữ liệu cấu hình, nhật ký JSON, correlation ID và kiểm tra tiến trình dùng chung.                                         |
-| `packages/contracts`               | Thư mục Protobuf và hợp đồng sự kiện còn trống, chờ duyệt thiết kế.                                                                                   |
+| `packages/contracts`               | Thư mục Protobuf và hợp đồng sự kiện chưa có file hợp đồng; đặc tả thiết kế đã có trong DOCX.                                                         |
 | `packages/testing`                 | Vị trí dành cho tiện ích kiểm thử kỹ thuật dùng chung khi cần.                                                                                        |
 | `infrastructure`                   | Docker Compose cho một PostgreSQL instance, RabbitMQ và MinIO.                                                                                        |
-| `docs`                             | SRS, tài liệu thiết kế và [các quyết định chờ duyệt](design-decisions-pending.md).                                                                    |
+| `docs`                             | Ba DOCX nguồn, [bộ thiết kế hiện hành](design-baseline.md), hướng dẫn database và sơ đồ ERD.                                                          |
 
 ## Quy tắc sở hữu dữ liệu và giao tiếp
 
-PostgreSQL chứa 5 database: `identity_db`, `trip_db`, `travel_db`, `finance_db` và `automation_db`. Mỗi dịch vụ nghiệp vụ có tài khoản database riêng và thư mục `migrations/` riêng hiện còn trống. Script khởi tạo chỉ tạo database và tài khoản, không tạo bảng nghiệp vụ. Mỗi dịch vụ chỉ được truy cập database của mình. Không dùng khóa ngoại, `JOIN`, trigger hoặc transaction xuyên database. Gateway và Export Worker không có tài khoản database nghiệp vụ.
+Kiến trúc PostgreSQL gồm 5 database: `identity_db`, `trip_db`, `travel_db`, `finance_db` và `automation_db`. Mỗi dịch vụ nghiệp vụ có tài khoản database và migration `V001.sql` riêng. Script Docker khởi tạo chỉ tạo database và tài khoản khi volume trống; nó không áp dụng migration. Mỗi dịch vụ chỉ được truy cập database của mình. Không dùng khóa ngoại, `JOIN`, trigger hoặc transaction xuyên database. Gateway và Export Worker không có tài khoản database nghiệp vụ. Xem [hướng dẫn database](../database/README.md) trước khi sử dụng các file SQL.
 
-Ứng dụng khách giao tiếp với Gateway qua REST/HTTPS. Các lệnh gọi đồng bộ giữa Gateway và dịch vụ, hoặc giữa các dịch vụ, sẽ dùng gRPC với Protobuf sau khi hợp đồng được duyệt. Sự kiện nghiệp vụ bất đồng bộ sẽ đi qua RabbitMQ. MinIO lưu nội dung tệp và đối tượng; thông tin mô tả cùng quyền truy cập vẫn do dịch vụ sở hữu dữ liệu quản lý. Bước khởi tạo này chưa định nghĩa phương thức gRPC, đường dẫn API nghiệp vụ, hàng đợi, sự kiện hoặc bucket lưu trữ.
+Ứng dụng khách giao tiếp với Gateway qua REST/HTTPS. Các lệnh gọi đồng bộ giữa Gateway và dịch vụ, hoặc giữa các dịch vụ, dùng gRPC với Protobuf; sự kiện nghiệp vụ bất đồng bộ đi qua RabbitMQ. MinIO lưu nội dung tệp và đối tượng; thông tin mô tả cùng quyền truy cập do dịch vụ sở hữu dữ liệu quản lý. Đặc tả DOCX mô tả REST, RPC và event ở mức thiết kế; các hợp đồng máy đọc được và phần xử lý tương ứng chưa được thêm vào kho mã nguồn.
 
 <a id="chay-cuc-bo"></a>
 
 ## Chạy cục bộ
+
+Các lệnh dưới đây là hướng dẫn cho lần chạy sau; việc sắp xếp tài liệu và file trong kho mã nguồn không khởi động hạ tầng hoặc tạo dữ liệu.
 
 Yêu cầu môi trường: Node.js 22 trở lên, pnpm 10 và Docker Compose. Phiên bản trình quản lý gói được pin trong `package.json`; có thể dùng `corepack pnpm` nếu máy chưa có lệnh `pnpm` trực tiếp.
 
@@ -53,6 +55,6 @@ pnpm infra:down
 
 `infra:down` giữ lại các volume đã đặt tên. Script khởi tạo PostgreSQL chỉ chạy khi volume dữ liệu còn trống; sửa `.env` sau đó không tự thay đổi mật khẩu database đã tạo. Tệp `.env` được Git bỏ qua, còn `.env.example` chỉ chứa giá trị mẫu.
 
-## Thiết kế chờ duyệt
+## Thiết kế hiện hành
 
-Công cụ ORM và migration, bảng dữ liệu vật lý, hợp đồng REST/gRPC nghiệp vụ, sự kiện nghiệp vụ, sơ đồ trạng thái và chi tiết phục hồi giao dịch được ghi trong [danh sách quyết định chờ duyệt](design-decisions-pending.md). Không suy diễn chức năng nghiệp vụ từ bộ khung hiện tại.
+SRS, ERD và đặc tả DDL/API/Event hiện có là đầu vào cho bước triển khai tiếp theo. [Bộ thiết kế hiện hành](design-baseline.md) ghi rõ nguồn và ranh giới. Công cụ ORM/migration runner chưa được chọn trong kho mã nguồn; không suy diễn rằng các hợp đồng thiết kế đã được triển khai. [Tài liệu kiểm tra](../database/validation.md) ghi các chênh lệch của bộ tài liệu hiện có.

@@ -11,9 +11,9 @@
   </p>
 
   <p>
-    <a href="docs/Wolfari_SRS_v1.0_Duyet.docx"><strong>Đọc SRS</strong></a>
+    <a href="docs/Wolfari_SRS_v2.0_ChinhThuc.docx"><strong>Đọc SRS</strong></a>
     · <a href="docs/architecture/repository-bootstrap.md">Hướng dẫn kho mã nguồn</a>
-    · <a href="docs/architecture/design-decisions-pending.md">Quyết định chờ duyệt</a>
+    · <a href="docs/architecture/design-baseline.md">Bộ thiết kế hiện hành</a>
   </p>
 </div>
 
@@ -32,9 +32,9 @@
 
 ## Giới thiệu
 
-Wolfari được định hướng là không gian chung cho người đi du lịch một mình hoặc theo nhóm nhỏ: cùng chuẩn bị lịch trình, lưu địa điểm, theo dõi quỹ chuyến đi, nhận nhắc việc và xuất kế hoạch để lưu hoặc chia sẻ. Mục tiêu sản phẩm trong [SRS](docs/Wolfari_SRS_v1.0_Duyet.docx) bao gồm trang web cho người dùng, trang web quản trị và ứng dụng di động.
+Wolfari được định hướng là không gian chung cho người đi du lịch một mình hoặc theo nhóm nhỏ: cùng chuẩn bị lịch trình, lưu địa điểm, theo dõi quỹ chuyến đi, nhận nhắc việc và xuất kế hoạch để lưu hoặc chia sẻ. Mục tiêu sản phẩm trong [SRS](docs/Wolfari_SRS_v2.0_ChinhThuc.docx) bao gồm trang web cho người dùng, trang web quản trị và ứng dụng di động.
 
-> **Trạng thái hiện tại:** Kho mã nguồn mới ở bước khởi tạo kỹ thuật. Chưa có giao diện web, API nghiệp vụ, phương thức gRPC nghiệp vụ, sự kiện nghiệp vụ hay bảng dữ liệu nghiệp vụ. ERD vật lý vẫn chờ duyệt.
+> **Trạng thái hiện tại:** SRS v2.0, ERD v1.1 và đặc tả DDL/API/Event v1.0 đã có trong `docs/`. Năm migration SQL đã được đặt theo service nhưng chưa chạy; chưa có giao diện web, API nghiệp vụ, handler gRPC/event hay dữ liệu khởi tạo. Xem [bộ thiết kế hiện hành](docs/architecture/design-baseline.md) và [hướng dẫn database](docs/database/README.md).
 
 Phần máy chủ được tổ chức quanh API Gateway/BFF, 5 dịch vụ nghiệp vụ và một Export Worker chạy nền. Ranh giới của từng ứng dụng, quy tắc sở hữu cơ sở dữ liệu và giao tiếp giữa các thành phần được ghi trong [hướng dẫn kho mã nguồn](docs/architecture/repository-bootstrap.md).
 
@@ -103,11 +103,12 @@ pnpm test
 ## Lộ trình
 
 - [x] Khởi tạo pnpm workspace, 7 ứng dụng NestJS và hạ tầng cục bộ.
-- [ ] Duyệt ERD vật lý và thiết kế API, gRPC, sự kiện trước khi triển khai nghiệp vụ.
+- [x] Đưa ERD vật lý, đặc tả API/gRPC/event và migration baseline vào kho mã nguồn.
+- [ ] Đối chiếu bộ tài liệu tham chiếu còn thiếu trước khi triển khai nghiệp vụ.
 - [ ] Phát triển trang web cho người dùng, trang web quản trị và các luồng nghiệp vụ theo SRS đã cập nhật.
 - [ ] Kiểm thử tích hợp và nghiệm thu MVP.
 
-Các điểm cần quyết định được theo dõi trong [danh sách quyết định chờ duyệt](docs/architecture/design-decisions-pending.md).
+Tình trạng bộ tài liệu và giới hạn kiểm tra được ghi trong [tài liệu kiểm tra](docs/database/validation.md).
 
 <p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
 
@@ -115,7 +116,7 @@ Các điểm cần quyết định được theo dõi trong [danh sách quyết 
 
 ## Đóng góp
 
-Nhóm phát triển nên đọc [SRS](docs/Wolfari_SRS_v1.0_Duyet.docx) và [quy tắc kho mã nguồn](docs/architecture/repository-bootstrap.md) trước khi đề xuất thay đổi. Với thay đổi mã nguồn, chạy `pnpm lint`, `pnpm build` và `pnpm test` trước khi mở pull request. Những quyết định thiết kế còn chờ duyệt cần được thống nhất trước khi thêm lược đồ dữ liệu hoặc hợp đồng giao tiếp nghiệp vụ.
+Nhóm phát triển nên đọc [SRS](docs/Wolfari_SRS_v2.0_ChinhThuc.docx), [bộ thiết kế hiện hành](docs/architecture/design-baseline.md) và [quy tắc kho mã nguồn](docs/architecture/repository-bootstrap.md) trước khi đề xuất thay đổi. Với thay đổi mã nguồn, chạy `pnpm lint`, `pnpm build` và `pnpm test` trước khi mở pull request. Mọi thay đổi lược đồ hoặc hợp đồng giao tiếp nghiệp vụ cần đối chiếu và cập nhật bộ tài liệu thiết kế liên quan.
 
 <p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
 
