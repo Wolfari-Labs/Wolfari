@@ -15,5 +15,7 @@ export async function bootstrapApp(module: Type<unknown>, appName: AppName): Pro
 
   const port = app.get(ConfigService).getOrThrow<number>(appPorts[appName]);
   await app.listen(port, '127.0.0.1');
+  process.on('message', (message) => {
+    if (message === 'shutdown') void app.close().then(() => process.exit(0));
+  });
 }
-
