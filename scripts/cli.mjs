@@ -17,15 +17,27 @@ async function main() {
     return;
   }
   if (command === 'dev:check') {
+    let pending = [];
     for (const app of apps) {
       const env = await readEnv(resolve(root, 'apps', app.name, '.env'));
       for (const endpoint of ['live', ...(app.service ? ['ready'] : [])]) {
-        const response = await fetch(`http://127.0.0.1:${env[app.portKey]}/health/${endpoint}`, { signal: AbortSignal.timeout(4000) });
-        const body = await response.json();
-        if (!response.ok || body.service !== app.name || body.status !== 'ok') throw new Error(`HEALTH_CHECK_FAILED`);
-        console.log(`PASS ${app.name} /health/${endpoint}`);
+        pending.push({ app: app.name, endpoint, url: `http://127.0.0.1:${env[app.portKey]}/health/${endpoint}` });
       }
     }
+    const deadline = Date.now() + 20_000;
+    while (pending.length && Date.now() < deadline) {
+      await Promise.all(pending.map(async check => {
+        try {
+          const response = await fetch(check.url, { signal: AbortSignal.timeout(2000) });
+          const body = await response.json();
+          if (response.ok && body.service === check.app && body.status === 'ok') check.passed = true;
+        } catch { /* App may still be starting; retry within the shared deadline. */ }
+      }));
+      for (const check of pending.filter(item => item.passed)) console.log(`PASS ${check.app} /health/${check.endpoint}`);
+      pending = pending.filter(item => !item.passed);
+      if (pending.length) await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (pending.length) throw new Error(`HEALTH_CHECK_FAILED: ${pending.map(item => `${item.app}/${item.endpoint}`).join(', ')}`);
     return;
   }
   if (!['db:status', 'db:migrate', 'db:inspect'].includes(command)) throw new Error('Lệnh không hợp lệ.');

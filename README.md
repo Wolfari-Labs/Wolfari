@@ -1,137 +1,96 @@
-<a id="readme-top"></a>
+# Wolfari
 
-<div align="center">
-  <h1>🐺 Wolfari</h1>
-  <p><strong>Cùng lên kế hoạch cho mỗi chuyến đi, từ lịch trình đến chi phí.</strong></p>
+Wolfari là nền tảng lập kế hoạch chuyến đi cho cá nhân và nhóm nhỏ: cùng xây lịch trình, lưu địa điểm, quản lý quỹ, nhận nhắc việc và xuất kế hoạch.
 
-  <p>
-    <img src="https://img.shields.io/badge/Giai%20%C4%91o%E1%BA%A1n-Kh%E1%BB%9Fi%20t%E1%BA%A1o-315b7d?style=flat-square" alt="Giai đoạn khởi tạo" />
-    <img src="https://img.shields.io/badge/M%C3%A1y%20ch%E1%BB%A7-NestJS%20%2B%20TypeScript-ea2845?style=flat-square" alt="NestJS và TypeScript" />
-    <img src="https://img.shields.io/badge/Kho%20m%C3%A3%20ngu%E1%BB%93n-pnpm-f69220?style=flat-square" alt="Kho mã nguồn pnpm" />
-  </p>
+Kho mã nguồn hiện có nền kỹ thuật cho 7 ứng dụng NestJS:
 
-  <p>
-    <a href="docs/Wolfari_SRS_v2.0_ChinhThuc.docx"><strong>Đọc SRS</strong></a>
-    · <a href="docs/architecture/repository-bootstrap.md">Hướng dẫn kho mã nguồn</a>
-    · <a href="docs/architecture/design-baseline.md">Bộ thiết kế hiện hành</a>
-  </p>
-</div>
+- API Gateway/BFF và Export Worker;
+- Identity, Trip Workspace, Travel Intelligence, Finance và Automation Service;
+- PostgreSQL, RabbitMQ và MinIO chạy bằng Docker Compose;
+- migration runner SQL thuần và package database dùng chung;
+- liveness cho cả 7 ứng dụng, readiness database/migration cho 5 service nghiệp vụ.
 
-## Mục lục
+API nghiệp vụ, Protobuf, event handler, giao diện và seed nghiệp vụ chưa thuộc baseline này. Xem [thiết kế hiện hành](docs/architecture/design-baseline.md), [môi trường phát triển](docs/architecture/development-environment.md) và [hướng dẫn database](docs/database/README.md).
 
-1. [Giới thiệu](#gioi-thieu)
-2. [Công nghệ](#cong-nghe)
-3. [Bắt đầu](#bat-dau)
-4. [Sử dụng](#su-dung)
-5. [Lộ trình](#lo-trinh)
-6. [Đóng góp](#dong-gop)
-7. [Giấy phép](#giay-phep)
-8. [Liên hệ](#lien-he)
-
-<a id="gioi-thieu"></a>
-
-## Giới thiệu
-
-Wolfari được định hướng là không gian chung cho người đi du lịch một mình hoặc theo nhóm nhỏ: cùng chuẩn bị lịch trình, lưu địa điểm, theo dõi quỹ chuyến đi, nhận nhắc việc và xuất kế hoạch để lưu hoặc chia sẻ. Mục tiêu sản phẩm trong [SRS](docs/Wolfari_SRS_v2.0_ChinhThuc.docx) bao gồm trang web cho người dùng, trang web quản trị và ứng dụng di động.
-
-> **Trạng thái hiện tại:** SRS v2.0, ERD v1.1 và đặc tả DDL/API/Event v1.0 đã có trong `docs/`. Năm migration SQL đã được đặt theo service nhưng chưa chạy; chưa có giao diện web, API nghiệp vụ, handler gRPC/event hay dữ liệu khởi tạo. Xem [bộ thiết kế hiện hành](docs/architecture/design-baseline.md) và [hướng dẫn database](docs/database/README.md).
-
-Phần máy chủ được tổ chức quanh API Gateway/BFF, 5 dịch vụ nghiệp vụ và một Export Worker chạy nền. Ranh giới của từng ứng dụng, quy tắc sở hữu cơ sở dữ liệu và giao tiếp giữa các thành phần được ghi trong [hướng dẫn kho mã nguồn](docs/architecture/repository-bootstrap.md).
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
-
-<a id="cong-nghe"></a>
-
-## Công nghệ
-
-- **Phần máy chủ:** TypeScript, NestJS.
-- **Kho mã nguồn:** pnpm workspace.
-- **Hạ tầng MVP:** PostgreSQL, RabbitMQ, MinIO, Docker Compose.
-
-Giao diện web và ứng dụng di động thuộc phạm vi sản phẩm trong SRS, nhưng chưa được khởi tạo trong kho mã nguồn này.
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
-
-<a id="bat-dau"></a>
+Mục tiêu sản phẩm trong SRS gồm web người dùng, web quản trị và ứng dụng di động. Backend được chia theo ranh giới dữ liệu: 5 service nghiệp vụ sở hữu 5 database riêng; Gateway là điểm vào REST/HTTPS, giao tiếp đồng bộ dự kiến dùng gRPC, sự kiện bất đồng bộ dùng RabbitMQ và nội dung file dùng MinIO.
 
 ## Bắt đầu
 
-### Yêu cầu môi trường
-
-- Node.js 22 trở lên.
-- pnpm 10 (phiên bản được pin trong `package.json`).
-- Docker Compose để chạy hạ tầng cục bộ.
-
-### Cài đặt
-
-Trong thư mục gốc của kho mã nguồn:
+Yêu cầu: Node.js 24, Docker Desktop/Compose và Corepack. pnpm `10.34.5` đã được pin trong `package.json`.
 
 ```sh
-pnpm install
-cp .env.example .env
-# Thay các giá trị change-me trong .env trước khi khởi động hạ tầng.
-pnpm infra:up
-pnpm dev
+corepack pnpm install --frozen-lockfile
+corepack pnpm env:init
+corepack pnpm infra:up
+corepack pnpm infra:check
+corepack pnpm db:migrate
+corepack pnpm db:status
+corepack pnpm dev
 ```
 
-Trên PowerShell, có thể dùng `Copy-Item .env.example .env` thay cho `cp`. Tệp `.env` ở thư mục gốc chỉ phục vụ Docker Compose; các tiến trình NestJS không đọc chung tệp chứa thông tin đăng nhập này. Hướng dẫn cổng, cấu hình tiến trình và dừng hạ tầng nằm trong [tài liệu khởi tạo](docs/architecture/repository-bootstrap.md#chay-cuc-bo).
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
-
-<a id="su-dung"></a>
-
-## Sử dụng
-
-Ở giai đoạn này, `pnpm dev` khởi động 7 ứng dụng NestJS với **đường dẫn kiểm tra tiến trình**. Có thể kiểm tra Gateway tại:
+Ở terminal khác:
 
 ```sh
-curl http://127.0.0.1:3000/health/live
+corepack pnpm dev:check
 ```
 
-Phản hồi mẫu: `{"status":"ok","service":"api-gateway"}`. Đây là kiểm tra tiến trình; chưa phải giao diện web hoặc API nghiệp vụ.
+`env:init` sinh root `.env` cho Compose và `.env` riêng cho từng app, không ghi đè file đã tồn tại và không in secret. Các tiến trình ứng dụng chỉ nhận cấu hình thuộc service của mình; Gateway và Export Worker không nhận credential database.
+
+`infra:up` chờ PostgreSQL, RabbitMQ và MinIO healthy rồi chạy smoke test bằng credential thật. `infra:down` dừng container nhưng giữ named volume. Nếu credential trong volume cũ khác `.env`, công cụ sẽ báo lỗi và không tự đổi mật khẩu hay xóa dữ liệu.
+
+## Endpoint kỹ thuật
+
+- `GET /health/live`: cả 7 ứng dụng, tại cổng `3000` và `3101`–`3106`.
+- `GET /health/ready`: 5 service nghiệp vụ; kiểm tra kết nối, đúng database/role và migration baseline.
+- Readiness trả `200` khi sẵn sàng, `503` khi database lỗi hoặc thiếu migration; response không chứa connection string hay lỗi SQL thô.
+
+## Lệnh thường dùng
 
 ```sh
-pnpm lint
-pnpm build
-pnpm test
+corepack pnpm db:status
+corepack pnpm db:migrate
+corepack pnpm db:migrate --service identity
+corepack pnpm db:inspect
+corepack pnpm db:test
+corepack pnpm lint
+corepack pnpm test
+corepack pnpm build
+corepack pnpm infra:down
 ```
 
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
+Chi tiết cấu hình, cổng, xử lý lỗi và nguyên tắc sở hữu dữ liệu nằm trong [hướng dẫn môi trường](docs/architecture/development-environment.md).
 
-<a id="lo-trinh"></a>
+## Tài liệu nguồn
 
-## Lộ trình
+- [SRS v2.0](docs/Wolfari_SRS_v2.0_ChinhThuc.docx)
+- [ERD v1.1](docs/Wolfari_ERD_Database_v1.1_ChinhThuc.docx)
+- [DDL/API/Event Specification v1.0](docs/Wolfari_DDL_API_Event_Specification_v1.0.docx)
 
-- [x] Khởi tạo pnpm workspace, 7 ứng dụng NestJS và hạ tầng cục bộ.
-- [x] Đưa ERD vật lý, đặc tả API/gRPC/event và migration baseline vào kho mã nguồn.
-- [ ] Đối chiếu bộ tài liệu tham chiếu còn thiếu trước khi triển khai nghiệp vụ.
-- [ ] Phát triển trang web cho người dùng, trang web quản trị và các luồng nghiệp vụ theo SRS đã cập nhật.
-- [ ] Kiểm thử tích hợp và nghiệm thu MVP.
+SRS v2.2 được các tài liệu khác tham chiếu nhưng chưa có trong repository; V001 hiện có là baseline kỹ thuật của đợt này.
 
-Tình trạng bộ tài liệu và giới hạn kiểm tra được ghi trong [tài liệu kiểm tra](docs/database/validation.md).
+## Kiểm thử
 
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
+```sh
+corepack pnpm lint
+corepack pnpm test
+corepack pnpm build
+corepack pnpm db:test
+```
 
-<a id="dong-gop"></a>
+`db:test` dùng Compose project, cổng và volume thử nghiệm riêng rồi tự dọn sau khi hoàn tất. Không chạy các fixture phá lỗi trên database local dùng để phát triển. Kết quả kiểm tra gần nhất được ghi tại [docs/database/validation.md](docs/database/validation.md).
 
-## Đóng góp
+## Trạng thái phạm vi
 
-Nhóm phát triển nên đọc [SRS](docs/Wolfari_SRS_v2.0_ChinhThuc.docx), [bộ thiết kế hiện hành](docs/architecture/design-baseline.md) và [quy tắc kho mã nguồn](docs/architecture/repository-bootstrap.md) trước khi đề xuất thay đổi. Với thay đổi mã nguồn, chạy `pnpm lint`, `pnpm build` và `pnpm test` trước khi mở pull request. Mọi thay đổi lược đồ hoặc hợp đồng giao tiếp nghiệp vụ cần đối chiếu và cập nhật bộ tài liệu thiết kế liên quan.
+- [x] Workspace 7 ứng dụng và hạ tầng local tái lập.
+- [x] Migration runner cho 5 database và database provider dùng chung.
+- [x] Liveness/readiness và kiểm thử tích hợp nền kỹ thuật.
+- [ ] Đối chiếu SRS v2.2 còn thiếu.
+- [ ] API nghiệp vụ, RPC/event và giao diện sản phẩm.
 
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
+## Đóng góp và giấy phép
 
-<a id="giay-phep"></a>
+Trước khi mở pull request, chạy `corepack pnpm lint`, `corepack pnpm test`, `corepack pnpm build` và các kiểm thử tích hợp liên quan. Mọi thay đổi schema hoặc hợp đồng giao tiếp cần cập nhật tài liệu thiết kế tương ứng.
 
-## Giấy phép
-
-Dự án chưa công bố giấy phép sử dụng. Thông tin này sẽ được cập nhật khi nhóm chọn và thêm tệp `LICENSE`.
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>
-
-<a id="lien-he"></a>
-
-## Liên hệ
+Dự án chưa công bố giấy phép sử dụng; cần thêm `LICENSE` trước khi phân phối ngoài phạm vi nhóm.
 
 Kho mã nguồn: [thepiece27/Wolfari](https://github.com/thepiece27/Wolfari).
-
-<p align="right"><a href="#readme-top">Về đầu trang ↑</a></p>

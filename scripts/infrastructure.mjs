@@ -50,8 +50,12 @@ export async function infrastructureCheck(env) {
   let created = false;
   try {
     await storage.makeBucket(bucket); created = true;
-    const policy = await storage.getBucketPolicy(bucket);
-    if (policy) throw new Error('SMOKE_BUCKET_NOT_PRIVATE');
+    try {
+      const policy = await storage.getBucketPolicy(bucket);
+      if (policy) throw new Error('SMOKE_BUCKET_NOT_PRIVATE');
+    } catch (error) {
+      if (error?.code !== 'NoSuchBucketPolicy') throw error;
+    }
     await storage.putObject(bucket, key, Buffer.from('wolfari-smoke'));
     const stream = await storage.getObject(bucket, key);
     const chunks = [];
