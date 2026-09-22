@@ -15,7 +15,7 @@ Wolfari là pnpm monorepo gồm 7 ứng dụng NestJS. Baseline kỹ thuật đ�
 | `apps/export-worker` | Worker xuất file, cổng kỹ thuật 3106; không sở hữu database. |
 | `packages/common` | Cấu hình, log, correlation ID và liveness dùng chung. |
 | `packages/database` | Pool `pg`, transaction và readiness dùng chung cho 5 service. |
-| `packages/contracts` | Vị trí dành cho Protobuf/event contract trong giai đoạn sau. |
+| `packages/contracts` | Protobuf/event contract v1, mã sinh, validator và catalog topology; chưa bật runtime transport. |
 | `infrastructure` | Docker Compose và bootstrap PostgreSQL. |
 
 Mỗi service nghiệp vụ chỉ kết nối database của chính nó bằng role `<service>_app`. Không dùng FK, JOIN, trigger hoặc transaction xuyên database. Gateway và Export Worker không nhận credential database.

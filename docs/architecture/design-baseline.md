@@ -33,4 +33,4 @@ Năm V001 đã được chạy và kiểm thử trên PostgreSQL trong môi trư
 
 ## Trạng thái triển khai
 
-Đã có CLI môi trường local, migration runner bằng `pg`, package `@wolfari/database`, cấu hình riêng từng app và readiness database cho 5 service. SQL baseline giữ nguyên. Chưa có entity/repository/controller nghiệp vụ, handler gRPC/event hoặc seed nghiệp vụ. Xem [môi trường phát triển](development-environment.md).
+Đã có CLI môi trường local, migration runner bằng `pg`, package `@wolfari/database`, cấu hình riêng từng app, readiness database cho 5 service và package `@wolfari/contracts` với 19 RPC/19 event v1. SQL baseline giữ nguyên. Chưa có entity/repository/controller nghiệp vụ, gRPC server/client runtime, RabbitMQ handler hoặc seed nghiệp vụ. Xem [môi trường phát triển](development-environment.md) và [contract](contracts.md).

@@ -1,6 +1,6 @@
 # Môi trường phát triển Wolfari
 
-Node.js 24, pnpm 10.34.5 và `pg`; PostgreSQL/RabbitMQ/MinIO chạy Docker Compose, 7 app NestJS chạy trên máy. Không cần `psql`. API nghiệp vụ và gRPC/event handler thuộc đợt tiếp theo.
+Node.js 24, pnpm 10.34.5 và `pg`; PostgreSQL/RabbitMQ/MinIO chạy Docker Compose, 7 app NestJS chạy trên máy. Không cần `psql`. Contract Protobuf/event đã được sinh và kiểm tra trong `@wolfari/contracts`; API nghiệp vụ và gRPC/RabbitMQ runtime handler thuộc đợt tiếp theo.
 
 ## Khởi động từ checkout mới
 

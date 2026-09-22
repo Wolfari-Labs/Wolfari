@@ -10,7 +10,7 @@ Kho mã nguồn hiện có nền kỹ thuật cho 7 ứng dụng NestJS:
 - migration runner SQL thuần và package database dùng chung;
 - liveness cho cả 7 ứng dụng, readiness database/migration cho 5 service nghiệp vụ.
 
-API nghiệp vụ, Protobuf, event handler, giao diện và seed nghiệp vụ chưa thuộc baseline này. Xem [thiết kế hiện hành](docs/architecture/design-baseline.md), [môi trường phát triển](docs/architecture/development-environment.md) và [hướng dẫn database](docs/database/README.md).
+API nghiệp vụ, gRPC/RabbitMQ runtime handler, giao diện và seed nghiệp vụ chưa thuộc baseline này. Protobuf/event contract đã có trong `@wolfari/contracts`; xem [tài liệu contract](docs/architecture/contracts.md), [thiết kế hiện hành](docs/architecture/design-baseline.md), [môi trường phát triển](docs/architecture/development-environment.md) và [hướng dẫn database](docs/database/README.md).
 
 Mục tiêu sản phẩm trong SRS gồm web người dùng, web quản trị và ứng dụng di động. Backend được chia theo ranh giới dữ liệu: 5 service nghiệp vụ sở hữu 5 database riêng; Gateway là điểm vào REST/HTTPS, giao tiếp đồng bộ dự kiến dùng gRPC, sự kiện bất đồng bộ dùng RabbitMQ và nội dung file dùng MinIO.
 
@@ -84,8 +84,9 @@ corepack pnpm db:test
 - [x] Workspace 7 ứng dụng và hạ tầng local tái lập.
 - [x] Migration runner cho 5 database và database provider dùng chung.
 - [x] Liveness/readiness và kiểm thử tích hợp nền kỹ thuật.
+- [x] Protobuf/event contract v1, mã sinh, validator và kiểm tra tương thích.
 - [ ] Đối chiếu SRS v2.2 còn thiếu.
-- [ ] API nghiệp vụ, RPC/event và giao diện sản phẩm.
+- [ ] API nghiệp vụ, gRPC/RabbitMQ runtime handler và giao diện sản phẩm.
 
 ## Đóng góp và giấy phép
 
