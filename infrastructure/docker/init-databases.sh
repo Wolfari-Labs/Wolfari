@@ -11,7 +11,7 @@ for service in identity trip travel finance automation; do
   app_password="${!password_variable:?Missing database password}"
   database="${service}_db"
 
-  psql --username "$POSTGRES_USER" --dbname postgres \
+  psql --set=ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
     --set=app_user="$app_user" --set=app_password="$app_password" \
     --set=app_database="$database" <<'SQL'
 SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_password') \gexec

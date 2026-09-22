@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { fork } from 'node:child_process';
+import { fork, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -33,13 +33,29 @@ async function db(service, work) {
   try { return await work(client); } finally { await client.end(); }
 }
 function docker(args) { return compose(env, args, { project, envFile: resolve(directory, '.env') }); }
+function bootstrapFailureProbe() {
+  return new Promise((resolvePromise, reject) => {
+    const args = [
+      'compose', '--project-name', project, '--env-file', resolve(directory, '.env'),
+      '-f', resolve(root, 'infrastructure/docker-compose.yml'), 'exec', '-T', 'postgres',
+      'psql', '--set=ON_ERROR_STOP=1', '--username', env.POSTGRES_USER, '--dbname', 'postgres',
+    ];
+    const child = spawn('docker', args, { env: { ...process.env, ...env }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    let stdout = ''; let stderr = '';
+    child.stdout.on('data', chunk => { stdout += chunk; });
+    child.stderr.on('data', chunk => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('exit', code => resolvePromise({ code, stdout, stderr }));
+    child.stdin.end('SELECT 1/0;\nSELECT 42 AS should_not_run;\n');
+  });
+}
 async function health(app, endpoint, status = 200) {
   const started = Date.now();
-  const response = await fetch(`http://127.0.0.1:${app.testPort}/health/${endpoint}`, { signal: AbortSignal.timeout(3500), headers: { 'x-correlation-id': 'test-readiness' } });
+  const response = await fetch(`http://127.0.0.1:${app.testPort}/health/${endpoint}`, { signal: AbortSignal.timeout(3500), headers: { 'x-correlation-id': 'ab814514-965c-443b-ae80-257a6776d89d' } });
   assert.equal(response.status, status);
   const body = await response.json();
   assert.equal(body.service, app.name);
-  if (endpoint === 'ready') { assert.equal(body.correlation_id, 'test-readiness'); assert(Date.now() - started < 3000); }
+  if (endpoint === 'ready') { assert.equal(body.correlation_id, 'ab814514-965c-443b-ae80-257a6776d89d'); assert(Date.now() - started < 3000); }
   return body;
 }
 async function launchApps() {
@@ -66,6 +82,11 @@ async function main() {
   await writeFile(resolve(directory, '.env'), Object.entries(env).map(([key, value]) => `${key}=${value}`).join('\n'), { mode: 0o600 });
   created = true;
   await docker(['up', '-d', '--wait', '--wait-timeout', '180', 'postgres']);
+  const bootstrapProbe = await bootstrapFailureProbe();
+  assert.notEqual(bootstrapProbe.code, 0);
+  assert(!bootstrapProbe.stdout.includes('should_not_run'));
+  assert.match(bootstrapProbe.stderr, /division by zero/i);
+  pass('psql bootstrap dừng ngay và trả mã lỗi khi SQL thất bại');
   const files = Object.fromEntries(await Promise.all(services.map(async service => [service, await migrationFiles(service)])));
   await Promise.all([migrate('identity', databaseUrl(env, 'identity'), files.identity), migrate('identity', databaseUrl(env, 'identity'), files.identity)]);
   pass('hai runner đồng thời chỉ áp dụng V001 một lần');

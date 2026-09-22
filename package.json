@@ -20,7 +20,13 @@
     "db:status": "node scripts/cli.mjs db:status",
     "db:migrate": "node scripts/cli.mjs db:migrate",
     "db:inspect": "node scripts/cli.mjs db:inspect",
-    "db:test": "corepack pnpm build && node scripts/database-integration.mjs"
+    "db:test": "corepack pnpm build && node scripts/database-integration.mjs",
+    "contracts:lint": "node scripts/contracts.mjs lint",
+    "contracts:generate": "node scripts/contracts.mjs generate",
+    "contracts:check": "node scripts/contracts.mjs check",
+    "contracts:test": "vitest run packages/contracts scripts/contracts.test.ts",
+    "contracts:breaking": "node scripts/contracts.mjs breaking",
+    "dev:test": "node scripts/launcher-test.mjs"
   },
   "devDependencies": {
     "@types/node": "24.13.5",

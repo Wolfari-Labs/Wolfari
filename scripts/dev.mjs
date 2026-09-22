@@ -25,6 +25,9 @@ async function stop() {
   for (const watcher of watchers) watcher.close();
   await reload.catch(() => {});
   await Promise.all([...children.values()].map(stopChild));
+  // A launcher started by the automated harness has an IPC channel. Close it
+  // after every application has shut down so the parent and launcher can exit.
+  if (process.connected) process.disconnect();
 }
 process.on('SIGINT', () => { void stop(); });
 process.on('SIGTERM', () => { void stop(); });
