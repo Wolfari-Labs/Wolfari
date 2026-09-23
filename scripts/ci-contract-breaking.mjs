@@ -12,6 +12,5 @@ if (baseline.status !== 0) {
   process.exit(0);
 }
 
-const corepack = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
-const result = spawnSync(corepack, ['pnpm', 'contracts:breaking', '--against', reference], { stdio: 'inherit' });
+const result = spawnSync(process.execPath, ['scripts/contracts.mjs', 'breaking', '--against', reference], { stdio: 'inherit' });
 process.exit(result.status ?? 1);

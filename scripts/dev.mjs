@@ -36,12 +36,12 @@ process.on('message', message => { if (message === 'shutdown') void stop(); });
 async function buildShared() {
   const pnpm = process.env.npm_execpath;
   if (!pnpm) throw new Error('Khởi động bằng corepack pnpm dev.');
-  await run(process.execPath, [pnpm, '--filter', '@wolfari/common', '--filter', '@wolfari/database', '-r', 'build'], { cwd: root });
+  await run(process.execPath, [pnpm, '-r', '--if-present', 'build'], { cwd: root });
 }
 async function start(app) {
   if (stopping) return;
   const env = appEnvironment(app, await readEnv(resolve(root, 'apps', app.name, '.env')));
-  const child = fork(resolve(root, 'apps', app.name, 'src/main.ts'), [], { cwd: root, env, execArgv: ['--import', 'tsx'], stdio: ['inherit', 'inherit', 'inherit', 'ipc'], windowsHide: true });
+  const child = fork(resolve(root, 'apps', app.name, 'dist/main.js'), [], { cwd: root, env, stdio: ['inherit', 'inherit', 'inherit', 'ipc'], windowsHide: true });
   children.set(app.name, child);
   child.on('error', () => { process.exitCode = 1; void stop(); });
   child.on('exit', code => {
@@ -61,7 +61,7 @@ async function main() {
   // Validate all config files before starting any app.
   for (const app of apps) await readEnv(resolve(root, 'apps', app.name, '.env'));
   await restartAll();
-  for (const directory of [...apps.map(app => `apps/${app.name}/src`), 'packages/common/src', 'packages/database/src']) {
+  for (const directory of [...apps.map(app => `apps/${app.name}/src`), 'packages/common/src', 'packages/database/src', 'packages/contracts/src', 'packages/contracts/proto', 'packages/contracts/schemas']) {
     watchers.push(watch(resolve(root, directory), { recursive: true }, () => {
       clearTimeout(timer);
       timer = setTimeout(() => { reload = reload.then(() => stopping ? undefined : restartAll()).catch(error => { console.error(safeError(error)); process.exitCode = 1; void stop(); }); }, 300);

@@ -1,6 +1,6 @@
 # Môi trường phát triển Wolfari
 
-Node.js 24, pnpm 10.34.5 và `pg`; PostgreSQL/RabbitMQ/MinIO chạy Docker Compose, 7 app NestJS chạy trên máy. Không cần `psql`. Contract Protobuf/event đã được sinh và kiểm tra trong `@wolfari/contracts`; API nghiệp vụ và gRPC/RabbitMQ runtime handler thuộc đợt tiếp theo.
+Node.js 24, pnpm 10.34.5 và `pg`; PostgreSQL/RabbitMQ/MinIO/Mailpit chạy Docker Compose, 7 app NestJS chạy trên máy. Không cần `psql`. Contract Protobuf/event nằm trong `@wolfari/contracts`. Identity đợt 1 đã có API, ba gRPC handler, outbox và gửi email local; các module nghiệp vụ khác thuộc đợt tiếp theo.
 
 ## Khởi động từ checkout mới
 
@@ -22,21 +22,21 @@ Tên database/role cố định theo V001; mật khẩu/cổng được đổi t
 
 ## Cổng và trạng thái
 
-| App | Cổng | Endpoint |
-| --- | ---: | --- |
-| Gateway | 3000 | `/health/live` |
-| Identity | 3101 | `/health/live`, `/health/ready` |
-| Trip | 3102 | `/health/live`, `/health/ready` |
-| Travel | 3103 | `/health/live`, `/health/ready` |
-| Finance | 3104 | `/health/live`, `/health/ready` |
-| Automation | 3105 | `/health/live`, `/health/ready` |
-| Export Worker | 3106 | `/health/live` |
+| App           | Cổng | Endpoint                        |
+| ------------- | ---: | ------------------------------- |
+| Gateway       | 3000 | `/health/live`, `/health/ready` |
+| Identity      | 3101 | `/health/live`, `/health/ready` |
+| Trip          | 3102 | `/health/live`, `/health/ready` |
+| Travel        | 3103 | `/health/live`, `/health/ready` |
+| Finance       | 3104 | `/health/live`, `/health/ready` |
+| Automation    | 3105 | `/health/live`, `/health/ready` |
+| Export Worker | 3106 | `/health/live`                  |
 
-Cổng hạ tầng: PostgreSQL 5432, AMQP 5672, RabbitMQ UI 15672, MinIO API 9000/UI 9001. Tất cả bind `127.0.0.1`; override bằng biến cổng trong template tương ứng.
+Cổng hạ tầng: PostgreSQL 5432, AMQP 5672, RabbitMQ UI 15672, MinIO API 9000/UI 9001, Mailpit SMTP 1025/UI 8025. Tất cả bind `127.0.0.1`; override bằng biến cổng trong template tương ứng.
 
-`dev` build common/database rồi chạy app. Sửa `src` của app/common/database sẽ đóng app, build package và tải lại. Ctrl+C đóng qua IPC/Nest shutdown hook, kết thúc pool; app quá 6 giây bị dừng. Sửa `.env` cần chạy lại `dev`.
+`dev` build common/database/contracts rồi chạy app từ `dist`. Sửa `src` của app/package hoặc proto/schema contract sẽ đóng app, build lại và tải lại. Ctrl+C đóng qua IPC/Nest shutdown hook, kết thúc pool; app quá 6 giây bị dừng. Sửa `.env` cần chạy lại `dev`.
 
-Readiness trả 200 với `status=ok`, `service`, `checks.database=up`, `checks.migrations=up` và `correlation_id`; lỗi DB hoặc thiếu V001 trả 503. Không trả connection string hoặc SQL lỗi thô. Probe tối đa 3 giây, request đồng thời dùng chung một probe, socket probe được hủy sau mỗi lần kiểm tra. Liveness độc lập DB. Gateway/Worker chưa có readiness cho dependency chưa tích hợp.
+Readiness service trả 200 với `status=ok`, `service`, `checks.database=up`, `checks.migrations=up` và `correlation_id`; lỗi DB hoặc thiếu V001 trả 503. Gateway readiness kiểm tra Identity, Worker chưa có readiness cho dependency chưa tích hợp. Không trả connection string hoặc SQL lỗi thô. Probe DB tối đa 3 giây; liveness độc lập DB. Identity/Automation có thêm `/health/dependencies` cho broker, SMTP và backlog.
 
 ## Provider cho module
 
@@ -51,12 +51,14 @@ corepack pnpm lint
 corepack pnpm test
 corepack pnpm build
 corepack pnpm db:test
+corepack pnpm identity:test
 corepack pnpm infra:down
 ```
 
-`infra:up` đợi healthy tối đa 180 giây rồi kiểm tra credential; lệnh Compose có timeout 5 phút. `infra:check` kiểm tra 5 DB, đăng nhập AMQP, tạo bucket private ngẫu nhiên để ghi/đọc/xóa object và kiểm tra truy cập ẩn danh bị chặn; dọn bucket sau kiểm tra.
+`infra:up` đợi healthy tối đa 180 giây rồi kiểm tra credential; lệnh Compose có timeout 5 phút. `infra:check` kiểm tra 5 DB, đăng nhập AMQP, tạo bucket private ngẫu nhiên để ghi/đọc/xóa object và kiểm tra truy cập ẩn danh bị chặn; dọn bucket sau kiểm tra. Lệnh cũng kiểm tra API Mailpit local.
 
 `infra:down` giữ volume local. `db:test` tạo project `wolfari-test-<random>`, cổng/volume riêng và database đúng tên V001. Test dừng/treo DB chỉ tác động project thử; kết thúc dọn container/volume đó. Nếu máy tắt đột ngột, kiểm tra nhãn/tên project còn lại trước khi dọn thủ công.
+`identity:test` tạo project `wolfari-identity-test-<random>` riêng cho PostgreSQL/RabbitMQ/MinIO/Mailpit, không dùng database phát triển. Chi tiết API web/mobile và phạm vi tại [Identity đợt 1](identity-phase1.md).
 
 ## Xử lý lỗi
 

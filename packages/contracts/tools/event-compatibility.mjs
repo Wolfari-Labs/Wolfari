@@ -15,29 +15,44 @@ function stable(value) {
   return JSON.stringify(value);
 }
 
-function compareProperty(eventType, name, previous, current, errors) {
-  if (!current) {
-    errors.push(`${eventType}: removed payload field ${name}`);
+function compareSchema(previous, current, path, errors) {
+  if (!current || typeof current !== 'object') {
+    errors.push(`${path}: removed or changed schema`);
     return;
   }
-  if (previous.enum && current.enum) {
-    const removed = previous.enum.filter(value => !current.enum.some(candidate => stable(candidate) === stable(value)));
-    if (removed.length) errors.push(`${eventType}.${name}: narrowed enum by removing ${removed.join(', ')}`);
-    const previousWithoutEnum = { ...previous }; delete previousWithoutEnum.enum;
-    const currentWithoutEnum = { ...current }; delete currentWithoutEnum.enum;
-    if (stable(previousWithoutEnum) !== stable(currentWithoutEnum)) errors.push(`${eventType}.${name}: changed schema`);
-    return;
+  if (stable(previous.required ?? []) !== stable(current.required ?? [])) {
+    errors.push(`${path}: changed required fields`);
   }
-  if (stable(previous) !== stable(current)) errors.push(`${eventType}.${name}: changed schema`);
+  for (const [name, property] of Object.entries(previous.properties ?? {})) {
+    compareSchema(property, current.properties?.[name], `${path}.${name}`, errors);
+  }
+  for (const name of Object.keys(current.properties ?? {})) {
+    if (!(name in (previous.properties ?? {})) && (current.required ?? []).includes(name)) {
+      errors.push(`${path}.${name}: added required field`);
+    }
+  }
+  const previousEnum = previous.enum;
+  const currentEnum = current.enum;
+  if (previousEnum || currentEnum) {
+    if (!previousEnum || !currentEnum || previousEnum.some(value => !currentEnum.some(candidate => stable(candidate) === stable(value)))) {
+      errors.push(`${path}: narrowed or changed enum`);
+    }
+  }
+  const ignored = new Set(['properties', 'required', 'enum']);
+  const previousRules = Object.fromEntries(Object.entries(previous).filter(([key]) => !ignored.has(key)));
+  const currentRules = Object.fromEntries(Object.entries(current).filter(([key]) => !ignored.has(key)));
+  if (stable(previousRules) !== stable(currentRules)) errors.push(`${path}: changed constraints or type`);
 }
 
 export function eventCompatibilityErrors(previousSchema, currentSchema) {
   const errors = [];
-  if (previousSchema.properties?.schema_version?.const !== currentSchema.properties?.schema_version?.const) {
-    errors.push('changed schema_version');
+  compareSchema({ ...previousSchema, allOf: undefined, definitions: undefined },
+    { ...currentSchema, allOf: undefined, definitions: undefined }, 'envelope', errors);
+  if (stable(previousSchema.allOf?.[0]) !== stable(currentSchema.allOf?.[0])) {
+    errors.push('changed actor rules');
   }
-  if (stable(previousSchema.required ?? []) !== stable(currentSchema.required ?? [])) {
-    errors.push('changed envelope required fields');
+  for (const [name, oldDefinition] of Object.entries(previousSchema.definitions ?? {})) {
+    compareSchema(oldDefinition, currentSchema.definitions?.[name], `definitions.${name}`, errors);
   }
   const previousVariants = variants(previousSchema);
   const currentVariants = variants(currentSchema);
@@ -50,10 +65,9 @@ export function eventCompatibilityErrors(previousSchema, currentSchema) {
   for (const [eventType, previousVariant] of previousVariants) {
     const currentVariant = currentVariants.get(eventType);
     if (!currentVariant) continue;
-    for (const key of ['producer', 'aggregate_type']) {
-      if (stable(previousVariant.properties?.[key]) !== stable(currentVariant.properties?.[key])) {
-        errors.push(`${eventType}: changed ${key}`);
-      }
+    compareSchema(previousVariant, currentVariant, `${eventType}.variant`, errors);
+    for (const name of Object.keys(currentVariant.properties ?? {})) {
+      if (!(name in (previousVariant.properties ?? {}))) errors.push(`${eventType}.variant.${name}: added envelope field`);
     }
     const previousPayload = definition(previousSchema, previousVariant.properties?.payload?.$ref);
     const currentPayload = definition(currentSchema, currentVariant.properties?.payload?.$ref);
@@ -61,17 +75,7 @@ export function eventCompatibilityErrors(previousSchema, currentSchema) {
       errors.push(`${eventType}: payload schema cannot be resolved`);
       continue;
     }
-    if (stable(previousPayload.required ?? []) !== stable(currentPayload.required ?? [])) {
-      errors.push(`${eventType}: changed required payload fields`);
-    }
-    for (const [name, property] of Object.entries(previousPayload.properties ?? {})) {
-      compareProperty(eventType, name, property, currentPayload.properties?.[name], errors);
-    }
-    for (const name of Object.keys(currentPayload.properties ?? {})) {
-      if (!(name in (previousPayload.properties ?? {})) && (currentPayload.required ?? []).includes(name)) {
-        errors.push(`${eventType}.${name}: added field is required`);
-      }
-    }
+    compareSchema(previousPayload, currentPayload, eventType, errors);
   }
   return errors;
 }

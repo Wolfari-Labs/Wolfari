@@ -19,12 +19,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+      - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm env:init
       - run: corepack pnpm contracts:lint
       - run: corepack pnpm contracts:check
       - run: corepack pnpm contracts:test
+      - run: corepack pnpm test
       - run: corepack pnpm lint
       - run: corepack pnpm build
       - run: corepack pnpm dev:test
@@ -40,6 +41,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+      - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm db:test
+
+  identity-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm identity:test

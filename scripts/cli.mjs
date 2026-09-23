@@ -20,7 +20,7 @@ async function main() {
     let pending = [];
     for (const app of apps) {
       const env = await readEnv(resolve(root, 'apps', app.name, '.env'));
-      for (const endpoint of ['live', ...(app.service ? ['ready'] : [])]) {
+      for (const endpoint of ['live', ...(app.service || app.name === 'api-gateway' ? ['ready'] : [])]) {
         pending.push({ app: app.name, endpoint, url: `http://127.0.0.1:${env[app.portKey]}/health/${endpoint}` });
       }
     }

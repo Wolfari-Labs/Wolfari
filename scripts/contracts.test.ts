@@ -31,6 +31,10 @@ describe('event compatibility', () => {
       status.enum.pop();
     }],
     ['added event', (schema: EventSchemaFixture) => { schema.allOf[1]!.oneOf!.push({ properties: { event_type: { const: 'NewEvent' }, producer: { const: 'Trip' }, aggregate_type: { const: 'Trip' }, payload: { $ref: '#/definitions/tripRevision' } } }); }],
+    ['referenced UUID type', (schema: EventSchemaFixture) => { (schema as unknown as { definitions: { uuid: { type: string } } }).definitions.uuid.type = 'number'; }],
+    ['envelope correlation type', (schema: EventSchemaFixture) => { (schema as unknown as { properties: { correlation_id: unknown } }).properties.correlation_id = { type: 'number' }; }],
+    ['nested constraint', (schema: EventSchemaFixture) => { (schema as unknown as { definitions: { changedEntity: { properties: { id: unknown } } } }).definitions.changedEntity.properties.id = { type: 'string' }; }],
+    ['variant required', (schema: EventSchemaFixture) => { (schema.allOf[1]!.oneOf![0] as { required: string[] }).required = ['producer']; }],
   ])('detects %s as breaking', async (_name, mutate) => {
     const previous = await load();
     const current = structuredClone(previous);

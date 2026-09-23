@@ -68,4 +68,10 @@ export async function infrastructureCheck(env) {
     if (created) { await storage.removeObject(bucket, key); await storage.removeBucket(bucket); }
   }
   console.log('PASS MinIO: private, ghi/đọc/xóa; đã dọn bucket thử');
+  if (env.MAILPIT_UI_PORT) {
+    const inbox = await fetch(`http://127.0.0.1:${env.MAILPIT_UI_PORT}/api/v1/info`, { signal: AbortSignal.timeout(5000) });
+    await inbox.body?.cancel();
+    if (!inbox.ok) throw new Error('MAILPIT_NOT_READY');
+    console.log('PASS Mailpit: giao diện và API local');
+  }
 }

@@ -5,9 +5,9 @@
 
 Wolfari là nền tảng lập kế hoạch chuyến đi cho cá nhân và nhóm nhỏ. Sản phẩm hướng tới việc cùng xây dựng lịch trình, lưu địa điểm, quản lý quỹ, nhận nhắc việc và xuất kế hoạch.
 
-Repository hiện cung cấp **baseline kỹ thuật** cho một pnpm monorepo gồm 7 ứng dụng NestJS, hạ tầng local, migration runner PostgreSQL, health check và bộ contract Protobuf/event v1.
+Repository hiện cung cấp nền kỹ thuật cho một pnpm monorepo gồm 7 ứng dụng NestJS, hạ tầng local, migration PostgreSQL, contract Protobuf/event v1 và **Identity đợt 1**: auth email, hồ sơ, phiên đăng nhập, avatar private và email thử qua Mailpit.
 
-> Phạm vi hiện tại tập trung vào nền tảng backend và hạ tầng phát triển. API nghiệp vụ, runtime gRPC/RabbitMQ, giao diện sản phẩm và seed dữ liệu nghiệp vụ sẽ được triển khai ở các đợt tiếp theo.
+> Identity là module nghiệp vụ đầu tiên. Các module Trip/Travel/Finance, phần lớn event handler, giao diện sản phẩm và seed nghiệp vụ chưa được triển khai. SRS v2.2 vẫn thiếu; Identity đợt này dùng V001 cùng tài liệu v2.0/v1.x hiện có.
 
 ## Kiến trúc
 
@@ -26,6 +26,7 @@ Hạ tầng local chạy bằng Docker Compose:
 - PostgreSQL: 5 database riêng, mỗi service nghiệp vụ sở hữu một database;
 - RabbitMQ: nền tảng cho sự kiện bất đồng bộ;
 - MinIO: lưu trữ nội dung file;
+- Mailpit: nhận email xác minh/đặt lại mật khẩu trong local tại `http://127.0.0.1:8025`;
 - `@wolfari/common`, `@wolfari/database` và `@wolfari/contracts`: các package dùng chung.
 
 Mỗi service nghiệp vụ chỉ truy cập database của mình. Không dùng foreign key, JOIN, trigger hoặc transaction xuyên database. Chi tiết ranh giới và quyết định kiến trúc nằm trong [baseline thiết kế](docs/architecture/design-baseline.md).
@@ -67,13 +68,13 @@ Tất cả ứng dụng cung cấp:
 GET /health/live
 ```
 
-Năm service nghiệp vụ bổ sung:
+Năm service nghiệp vụ và Gateway bổ sung:
 
 ```text
 GET /health/ready
 ```
 
-Readiness kiểm tra kết nối đúng database/role và migration baseline `V001`. Trạng thái sẵn sàng trả `200`; lỗi database hoặc thiếu migration trả `503`. Response không chứa connection string hay lỗi SQL thô.
+Readiness của năm service kiểm tra đúng database/role và migration baseline `V001`; Gateway kiểm tra Identity. Trạng thái sẵn sàng trả `200`; lỗi dependency trả `503`. Response không chứa connection string hay lỗi SQL thô. Identity và Automation còn có `/health/dependencies` để xem tình trạng broker/email và số việc chờ, độc lập với login readiness.
 
 ## Lệnh phát triển
 
@@ -87,6 +88,7 @@ corepack pnpm db:migrate
 corepack pnpm db:migrate --service identity
 corepack pnpm db:inspect
 corepack pnpm db:test
+corepack pnpm identity:test
 
 # Contract
 corepack pnpm contracts:lint
@@ -101,6 +103,7 @@ corepack pnpm build
 ```
 
 `db:test` tạo Compose project, cổng và volume thử nghiệm riêng rồi tự dọn khi hoàn tất. Không chạy fixture phá lỗi trên database local đang dùng để phát triển.
+`identity:test` cũng tạo Compose project riêng, kiểm thử REST/Gateway, RPC, email Mailpit, avatar và quyền truy cập, rồi dọn toàn bộ dữ liệu thử.
 
 ## Tài liệu
 
@@ -108,6 +111,9 @@ corepack pnpm build
 - [Môi trường phát triển](docs/architecture/development-environment.md)
 - [Baseline thiết kế](docs/architecture/design-baseline.md)
 - [Protobuf và event contract](docs/architecture/contracts.md)
+- [Identity đợt 1 và hướng dẫn web/mobile](docs/architecture/identity-phase1.md)
+- [OpenAPI Identity](docs/api/identity.openapi.yaml)
+- [Kết quả kiểm tra Identity](docs/architecture/identity-validation.md)
 - [Database và migration](docs/database/README.md)
 - [Kết quả kiểm tra database](docs/database/validation.md)
 - [SRS v2.0](docs/Wolfari_SRS_v2.0_ChinhThuc.docx)
@@ -122,8 +128,9 @@ SRS v2.2 được một số tài liệu tham chiếu nhưng chưa có trong rep
 - [x] Migration runner cho 5 database và database provider dùng chung.
 - [x] Liveness/readiness và kiểm thử tích hợp nền tảng.
 - [x] Protobuf/event contract v1, mã sinh, validator và kiểm tra tương thích.
+- [x] Identity đợt 1: email auth, hồ sơ, phiên, avatar và gửi email local.
 - [ ] Đối chiếu đầy đủ với SRS v2.2.
-- [ ] API nghiệp vụ, runtime gRPC/RabbitMQ và giao diện sản phẩm.
+- [ ] Các module nghiệp vụ khác, runtime event/RPC đầy đủ và giao diện sản phẩm.
 
 ## Đóng góp và giấy phép
 

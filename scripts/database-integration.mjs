@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, generateKeyPairSync } from 'node:crypto';
 import { parseEnv } from 'node:util';
 import pg from 'pg';
 import { root, services, apps, appEnvironment, databaseUrl } from './config.mjs';
@@ -59,9 +59,38 @@ async function health(app, endpoint, status = 200) {
   return body;
 }
 async function launchApps() {
+  for (const app of apps) app.testPort = await port();
+  const grpcPort = await port();
+  const pair = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const secrets = Object.fromEntries(['GATEWAY', 'AUTOMATION', 'TRIP', 'FINANCE', 'TRAVEL', 'EXPORT'].map(caller => [`${caller}_IDENTITY_SECRET`, randomBytes(32).toString('hex')]));
+  const gatewayPort = apps.find(app => app.name === 'api-gateway').testPort;
+  const identityPort = apps.find(app => app.name === 'identity-service').testPort;
   for (const app of apps) {
-    app.testPort = await port();
-    const values = { NODE_ENV: 'test', [app.portKey]: String(app.testPort), ...(app.service ? { DATABASE_URL: databaseUrl(env, app.service) } : {}) };
+    const values = {
+      NODE_ENV: 'test', [app.portKey]: String(app.testPort),
+      ...(app.service ? { DATABASE_URL: databaseUrl(env, app.service) } : {}),
+      ...(app.name === 'identity-service' ? {
+        ...secrets, IDENTITY_GRPC_PORT: String(grpcPort),
+        IDENTITY_ACCESS_PRIVATE_KEY: pair.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64'),
+        IDENTITY_ACCESS_PUBLIC_KEY: pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64'),
+        IDENTITY_TOKEN_KEY: randomBytes(32).toString('hex'),
+        RABBITMQ_URL: 'amqp://127.0.0.1:9', MINIO_ENDPOINT: '127.0.0.1:9',
+        MINIO_ACCESS_KEY: 'test', MINIO_SECRET_KEY: 'test',
+        IDENTITY_LINK_BASE_URL: `http://127.0.0.1:${gatewayPort}`,
+      } : {}),
+      ...(app.name === 'automation-service' ? {
+        AUTOMATION_IDENTITY_SECRET: secrets.AUTOMATION_IDENTITY_SECRET,
+        IDENTITY_GRPC_TARGET: `127.0.0.1:${grpcPort}`, RABBITMQ_URL: 'amqp://127.0.0.1:9',
+        SMTP_HOST: '127.0.0.1', SMTP_PORT: '9',
+      } : {}),
+      ...(app.name === 'api-gateway' ? {
+        GATEWAY_IDENTITY_SECRET: secrets.GATEWAY_IDENTITY_SECRET,
+        GATEWAY_CSRF_KEY: randomBytes(32).toString('hex'),
+        IDENTITY_HTTP_URL: `http://127.0.0.1:${identityPort}`,
+        IDENTITY_GRPC_TARGET: `127.0.0.1:${grpcPort}`,
+        WEB_ORIGIN: `http://127.0.0.1:${gatewayPort}`,
+      } : {}),
+    };
     const child = fork(resolve(root, 'apps', app.name, 'dist/main.js'), [], { env: appEnvironment(app, values), stdio: ['ignore', 'ignore', 'pipe', 'ipc'], windowsHide: true });
     child.stderr.on('data', () => {});
     children.push(child);
