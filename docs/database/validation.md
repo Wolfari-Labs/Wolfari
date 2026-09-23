@@ -1,22 +1,46 @@
-# Kiểm tra bộ tài liệu và artifact Wolfari
+# Kết quả kiểm tra nền database Wolfari
 
-## Đối chiếu bố cục hiện tại
+Kết quả dưới đây được chạy lại ngày 23-09-2026 trên Docker Desktop, không chỉ kế thừa ghi nhận của bộ bàn giao cũ.
 
-- Năm file Mermaid đã được đặt trong `docs/erd/`; năm migration và ba test constraint SQL nằm trong service sở hữu; hai script SQL dùng chung nằm trong `infrastructure/postgres/`.
-- 15 file Mermaid/SQL/test trên khớp byte với [`SHA256SUMS.source-bundle.txt`](SHA256SUMS.source-bundle.txt). [`SHA256SUMS.txt`](SHA256SUMS.txt) ghi checksum của toàn bộ 18 artifact hiện có theo đường dẫn mới, gồm ba DOCX ở gốc `docs/`.
-- Hai DOCX ERD và DDL/API/Event hiện có **không khớp checksum** DOCX tương ứng trong bộ bàn giao cũ. Điều này chỉ chứng minh file đã khác byte; chưa xác định nội dung khác ở đâu.
-- Checksum nguồn nhắc `Wolfari_SRS_v2.2_ThayThe_TuMuc10.docx`, nhưng file này chưa có trong kho mã nguồn. DOCX SRS hiện có là v2.0; ERD và đặc tả DDL/API/Event cũng nhắc đến bản thay thế v2.2. Cần xác nhận hoặc bổ sung tài liệu đó trước khi dùng các mục liên quan làm đầu vào triển khai.
+## Kết quả
 
-## Kết quả ghi nhận từ bộ bàn giao trước
+| Hạng mục | Trạng thái | Bằng chứng chính |
+| --- | --- | --- |
+| Cài dependency bằng lockfile | PASS | pnpm 10.34.5 hoàn tất với Node.js 24. |
+| Lint | PASS | Toàn workspace không có lỗi lint. |
+| Unit test | PASS | 8 file, 34 test; gồm 24 test contract. |
+| Build | PASS | 7 app và package dùng chung biên dịch thành công. |
+| Migration tích hợp | PASS | 5 database nhận V001, chạy lại không ghi trùng. |
+| Schema | PASS | 54 bảng mô hình, 5 bảng `schema_migrations`, 46 FK nội bộ database. |
+| Constraint fixture | PASS | Cả 3 fixture SQL hiện có. |
+| Cô lập quyền | PASS | 20/20 tổ hợp role truy cập database service khác bị từ chối. |
+| Tranh chấp runner | PASS | Hai runner đồng thời chỉ áp dụng migration một lần; lock timeout hoạt động. |
+| Trạng thái bất thường | PASS | Sai role/database/password, checksum, unknown history và schema không có lịch sử đều bị chặn. |
+| Transaction/provider | PASS | Commit, rollback, release, bigint/numeric dạng chuỗi và pool không rò kết nối. |
+| Health endpoint | PASS | 7 liveness, 5 readiness; thiếu migration trả 503. |
+| Database outage/recovery | PASS | Readiness chuyển 503 khi PostgreSQL dừng và trở lại 200 sau khi khởi động; dữ liệu được giữ. |
+| Contract lint/codegen/check | PASS | Buf lint, 19 RPC, 19 event, generated source không lệch và round-trip Protobuf/Ajv đều PASS. |
+| Launcher shutdown | PASS | `dev:test` khởi động 7 liveness và shutdown IPC trên Windows PASS. |
+| Bootstrap error stop | PASS | `db:test` xác nhận `ON_ERROR_STOP=1` dừng SQL lỗi với mã khác 0. |
 
-- Phân tích cú pháp bằng parser PostgreSQL cho 10 file SQL, gồm migration và test fixture: đạt theo ghi nhận trước.
-- Kiểm tra 54 bảng trong 5 database và 46 FK cùng database: đạt theo ghi nhận trước.
-- Bộ Word mô tả 33/33 FR bằng 170 REST endpoint, 19 RPC và 19 message theo ghi nhận trước.
+`corepack pnpm db:test` tạo Compose project, cổng và named volume riêng, chạy các phép thử phá lỗi tại đó rồi dọn project/volume. Database local dùng để phát triển không bị dùng cho fixture lỗi.
 
-Các kết quả này chưa được chạy lại trong lần sắp xếp kho mã nguồn này. Việc khớp checksum của SQL/Mermaid/test cho thấy nội dung của những file đó được giữ nguyên khi chuyển vị trí; nó không thay thế kiểm tra trên PostgreSQL.
+## Artifact và giới hạn
 
-## Giới hạn
+- Năm migration V001 và ba fixture constraint là baseline hiện tại.
+- `SHA256SUMS.source-bundle.txt` vẫn dùng để đối chiếu bundle SQL/Mermaid/test ban đầu. Runner duy trì manifest checksum riêng cho migration thực thi.
+- Hai DOCX ERD và DDL/API/Event hiện không khớp byte với checksum bundle cũ; điều này chưa xác định khác biệt nội dung.
+- `Wolfari_SRS_v2.2_ThayThe_TuMuc10.docx` được tài liệu khác nhắc đến nhưng chưa có trong repository. SRS hiện có là v2.0.
+- Các kết quả trên xác nhận nền kỹ thuật database, không phải nghiệm thu API nghiệp vụ, UI, AT01–AT18 hay NFR sản phẩm.
 
-- Chưa chạy bootstrap PostgreSQL, V001, test fixture hoặc seed trong lần sắp xếp này; không xác nhận trạng thái database đang có ở máy khác.
-- Chưa chạy kiểm thử tích hợp, kiểm thử tranh chấp, AT01–AT18 hoặc đo NFR. Đây là bộ thiết kế và migration baseline, không phải báo cáo nghiệm thu ứng dụng.
-- SQL dành cho cài mới, không phải chuyển đổi dữ liệu từ schema cũ.
+Chạy lại toàn bộ:
+
+```sh
+corepack pnpm lint
+corepack pnpm test
+corepack pnpm build
+corepack pnpm db:test
+corepack pnpm contracts:lint
+corepack pnpm contracts:check
+corepack pnpm contracts:test
+```

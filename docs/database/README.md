@@ -1,61 +1,50 @@
-# Hướng dẫn artifact database Wolfari
+# Database và migration Wolfari
 
-Thư mục này mô tả cách các artifact database được tổ chức trong kho mã nguồn. Baseline sử dụng PostgreSQL 16+, gồm 5 database độc lập và không có dữ liệu seed.
+Năm file `apps/<service>/migrations/V001.sql` là baseline PostgreSQL 16+ hiện có. Local dùng PostgreSQL 17 theo image/digest trong Compose. SQL gốc được giữ nguyên; ứng dụng dùng pg.
 
-## Vị trí artifact
+## Chạy và kiểm tra
 
-| Artifact                      | Vị trí                                                 |
-| ----------------------------- | ------------------------------------------------------ |
-| Bootstrap thủ công cho DBA    | `infrastructure/postgres/bootstrap-databases.sql`      |
-| Migration Identity            | `apps/identity-service/migrations/V001.sql`            |
-| Migration Trip Workspace      | `apps/trip-workspace-service/migrations/V001.sql`      |
-| Migration Travel Intelligence | `apps/travel-intelligence-service/migrations/V001.sql` |
-| Migration Finance             | `apps/finance-service/migrations/V001.sql`             |
-| Migration Automation          | `apps/automation-service/migrations/V001.sql`          |
-| Truy vấn kiểm tra schema      | `infrastructure/postgres/inspect-schema.sql`           |
-| Test constraint               | `apps/<service>/tests/database/V001_constraints.sql`   |
-| ERD Mermaid                   | `docs/erd/*.mmd`                                       |
-
-Ba tài liệu DOCX nguồn được giữ trực tiếp trong `docs/`. Các thư mục `docs/sql/`, `docs/tests/`, `docs/diagrams/` và `docs/documents/` của bộ bàn giao cũ không còn được dùng: SQL, test và Mermaid đã nằm tại các vị trí sở hữu ở bảng trên.
-
-[`SHA256SUMS.txt`](SHA256SUMS.txt) ghi checksum cho các file ở bố cục hiện tại, với đường dẫn tính từ gốc repository. [`SHA256SUMS.source-bundle.txt`](SHA256SUMS.source-bundle.txt) giữ nguyên checksum của bộ bàn giao ban đầu để đối chiếu nguồn. Hai DOCX hiện tại không trùng byte với bản ghi trong checksum nguồn và file SRS v2.2 được nhắc ở đó chưa có; xem [trạng thái kiểm tra](validation.md). Không coi checksum cũ là xác nhận tính toàn vẹn của ba DOCX hiện có.
-
-## Bootstrap PostgreSQL
-
-Docker Compose dùng `infrastructure/docker/init-databases.sh` để tạo role và database từ biến môi trường khi volume PostgreSQL còn trống. Luồng này không tự áp dụng migration nghiệp vụ.
-
-`infrastructure/postgres/bootstrap-databases.sql` là phương án cài thủ công cho DBA ngoài Docker. Không chạy đồng thời hai phương án trên cùng một PostgreSQL instance. Script thủ công dùng các role `identity_app`, `trip_app`, `travel_app`, `finance_app` và `automation_app`; mật khẩu phải được cấp qua cơ chế secret phù hợp, không ghi vào repository.
-
-Lệnh tham khảo cho môi trường cài mới:
+Sau `corepack pnpm env:init` và `corepack pnpm infra:up`:
 
 ```sh
-psql -v ON_ERROR_STOP=1 -d postgres -f infrastructure/postgres/bootstrap-databases.sql
+corepack pnpm db:status
+corepack pnpm db:migrate
+corepack pnpm db:migrate --service identity
+corepack pnpm db:inspect
+corepack pnpm db:test
 ```
 
-## Migration baseline
+Status/migrate/inspect hỗ trợ `--service identity|trip|travel|finance|automation`; mặc định chạy lần lượt cả năm. Runner lấy credential riêng từ app .env, không cần psql, không in secret. db:test tạo môi trường PostgreSQL riêng và dọn volume thử khi kết thúc.
 
-Mỗi `V001.sql` chỉ được chạy một lần trên database trống bằng đúng owner của database đó. File tự kiểm tra `current_database()`, chạy trong transaction và ghi phiên bản vào `schema_migrations`.
+| Database | Role | Tổng bảng gồm schema_migrations |
+| --- | --- | ---: |
+| identity_db | identity_app | 8 |
+| trip_db | trip_app | 18 |
+| travel_db | travel_app | 4 |
+| finance_db | finance_app | 17 |
+| automation_db | automation_app | 12 |
 
-```sh
-psql -v ON_ERROR_STOP=1 -U identity_app -d identity_db -f apps/identity-service/migrations/V001.sql
-psql -v ON_ERROR_STOP=1 -U trip_app -d trip_db -f apps/trip-workspace-service/migrations/V001.sql
-psql -v ON_ERROR_STOP=1 -U travel_app -d travel_db -f apps/travel-intelligence-service/migrations/V001.sql
-psql -v ON_ERROR_STOP=1 -U finance_app -d finance_db -f apps/finance-service/migrations/V001.sql
-psql -v ON_ERROR_STOP=1 -U automation_app -d automation_db -f apps/automation-service/migrations/V001.sql
-```
+Có 54 bảng mô hình, 5 bảng lịch sử và 46 FK cùng database. Mỗi role chỉ kết nối DB sở hữu; Gateway/Worker không có DB nghiệp vụ.
 
-Không dùng ORM synchronize, không chạy lại V001 để che schema drift và không sửa V001 sau khi đã triển khai. Hệ thống đã có dữ liệu phải dùng backup, schema diff, `V002` forward migration và kế hoạch backfill riêng.
+## Hợp đồng runner
 
-## Kiểm tra
+- Kiểm tra database/role, checksum SQL trong [manifest](SHA256SUMS.txt), lịch sử đã áp dụng và danh sách migration liên tục từ V001.
+- Session advisory lock riêng từng DB, chờ tối đa 30 giây; dùng cùng kết nối đến cuối lượt.
+- Gửi nguyên SQL có BEGIN/COMMIT; chính file ghi schema_migrations. Không tách theo dấu chấm phẩy hoặc bọc transaction ngoài.
+- V001 chỉ chạy khi public schema chưa có đối tượng. Schema có đối tượng nhưng thiếu lịch sử, hoặc lịch sử lạ/không liên tục, bị từ chối.
+- Migration đã chạy được bỏ qua. Lỗi dừng lượt; database đã commit giữ nguyên. Chạy lại tiếp tục phần thiếu, không có transaction chung 5 DB.
+- Checksum bảo vệ nguồn SQL, không chứng minh schema đang chạy chưa bị sửa thủ công. Dùng db:inspect để điều tra schema drift.
 
-Sau khi áp dụng V001 trên database thử nghiệm riêng, có thể chạy test constraint của đúng service. Các fixture kết thúc bằng `ROLLBACK`.
+## Thêm migration
 
-```sh
-psql -v ON_ERROR_STOP=1 -U identity_app -d identity_db -f apps/identity-service/tests/database/V001_constraints.sql
-psql -v ON_ERROR_STOP=1 -U trip_app -d trip_db -f apps/trip-workspace-service/tests/database/V001_constraints.sql
-psql -v ON_ERROR_STOP=1 -U finance_app -d finance_db -f apps/finance-service/tests/database/V001_constraints.sql
-```
+Giữ V001 bất biến; thêm V002.sql, V003.sql ở service sở hữu. Mỗi file kiểm tra đúng DB, có BEGIN/COMMIT và INSERT schema_migrations cùng transaction. Thêm SHA-256 theo đường dẫn root vào manifest trong cùng thay đổi có review. .gitattributes giữ byte SQL khi checkout Windows/Linux. Lệnh cần chạy ngoài transaction phải dùng quy trình DBA riêng.
 
-Chạy `infrastructure/postgres/inspect-schema.sql` riêng trong từng database để đối chiếu. Năm file Mermaid hỗ trợ đọc và chỉnh ERD độc lập; chúng không thay thế migration.
+Migration lỗi rollback tại DB sở hữu. Schema đã có dữ liệu cần forward migration, backup/backfill và rollback ứng dụng tương thích; không chạy lại V001 hoặc tự xóa volume.
 
-Trong lần tổ chức kho mã nguồn này, không có lệnh bootstrap, migration, test SQL hoặc seed nào được chạy. Xem [trạng thái kiểm tra](validation.md) để biết giới hạn hiện tại.
+Script `infrastructure/postgres/bootstrap-databases.sql` dành cho DBA cài thủ công ngoài Docker; không chạy trên instance Compose đã bootstrap. inspect-schema.sql được runner dùng kiểm tra bảng/constraint/index. Test constraint SQL Identity/Trip/Finance kết thúc ROLLBACK và được chạy trên DB thử riêng.
+
+## Nguồn và giới hạn
+
+[Manifest nguồn](SHA256SUMS.source-bundle.txt) giữ checksum bàn giao cũ. Runner kiểm tra SQL migration cần chạy trong manifest hiện tại; khác biệt checksum DOCX SRS không thay SQL baseline. SRS v2.2 được ERD/Contract tham chiếu vẫn thiếu: xem [validation](validation.md) và [baseline](../architecture/design-baseline.md).
+
+Hướng dẫn cấu hình, readiness và xử lý lỗi: [môi trường phát triển](../architecture/development-environment.md).

@@ -20,7 +20,7 @@ Khi có khác biệt, SRS quyết định hành vi nghiệp vụ; ERD quyết đ
 - Năm sơ đồ Mermaid nằm tại `docs/erd/`.
 - Hướng dẫn và trạng thái kiểm tra database nằm tại `docs/database/`.
 
-Các file đã được đưa về đúng ranh giới sở hữu nhưng **chưa được chạy trên PostgreSQL**. Docker Compose hiện chỉ tạo 5 database và role khi volume mới; không tự áp dụng `V001.sql`.
+Năm V001 đã được chạy và kiểm thử trên PostgreSQL trong môi trường thử nghiệm riêng ngày 22/09/2026. Compose tạo database/role khi volume mới; `db:migrate` áp dụng SQL riêng sau đó. Xem [validation](../database/validation.md).
 
 ## Ranh giới không thay đổi
 
@@ -33,4 +33,4 @@ Các file đã được đưa về đúng ranh giới sở hữu nhưng **chưa 
 
 ## Trạng thái triển khai
 
-ERD, DDL, catalog REST/gRPC/event và các quy tắc nhất quán đã có baseline thiết kế. Kho mã nguồn vẫn chưa có entity, repository, controller nghiệp vụ, handler gRPC/event, migration runner hay dữ liệu seed. Việc chọn và cấu hình công cụ migration/ORM phải bảo toàn SQL baseline đã chốt, không dùng ORM synchronize để thay thế migration có phiên bản.
+Đã có CLI môi trường local, migration runner bằng `pg`, package `@wolfari/database`, cấu hình riêng từng app, readiness database cho 5 service và package `@wolfari/contracts` với 19 RPC/19 event v1. SQL baseline giữ nguyên. Chưa có entity/repository/controller nghiệp vụ, gRPC server/client runtime, RabbitMQ handler hoặc seed nghiệp vụ. Xem [môi trường phát triển](development-environment.md) và [contract](contracts.md).
