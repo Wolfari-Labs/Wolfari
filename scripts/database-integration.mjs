@@ -20,6 +20,7 @@ let provider;
 let created = false;
 let directory;
 let env;
+let stage = 'setup';
 const pass = message => { checks++; console.log(`PASS ${message}`); };
 async function port() {
   const server = createServer();
@@ -32,7 +33,43 @@ async function db(service, work) {
   const client = await connectDatabase(service, databaseUrl(env, service));
   try { return await work(client); } finally { await client.end(); }
 }
+async function waitForDatabase(service, timeoutMs = 180000) {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    try { await db(service, client => client.query('SELECT 1')); return; }
+    catch (error) {
+      if (['28P01', '42501'].includes(error.code) || error.message === 'WRONG_DATABASE_OR_ROLE') throw error;
+      if (Date.now() >= deadline) throw new Error('POSTGRES_RESTART_TIMEOUT');
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+}
 function docker(args) { return compose(env, args, { project, envFile: resolve(directory, '.env') }); }
+function dockerDiagnostic(args) {
+  return new Promise(resolveResult => {
+    const command = ['compose', '--project-name', project, '--env-file', resolve(directory, '.env'),
+      '-f', resolve(root, 'infrastructure/docker-compose.yml'), ...args];
+    const child = spawn('docker', command, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let output = '';
+    const append = chunk => { output = (output + chunk.toString()).slice(-16000); };
+    child.stdout.on('data', append);
+    child.stderr.on('data', append);
+    const timer = setTimeout(() => child.kill(), 10000);
+    child.once('error', error => { clearTimeout(timer); resolveResult({ code: error.code ?? 'ERROR', output }); });
+    child.once('close', code => { clearTimeout(timer); resolveResult({ code, output }); });
+  });
+}
+async function reportDockerDiagnostics() {
+  if (!created || !directory || !env) return;
+  for (const [label, args] of [['containers', ['ps', '--all']], ['postgres logs', ['logs', '--no-color', '--tail=80', 'postgres']]]) {
+    const result = await dockerDiagnostic(args);
+    let output = result.output;
+    for (const [key, value] of Object.entries(env)) {
+      if (/(?:PASS|PASSWORD|SECRET|TOKEN|PRIVATE_KEY)/.test(key) && value) output = output.replaceAll(String(value), '[REDACTED]');
+    }
+    console.error(`db:test Docker ${label} (exit ${result.code}):\n${output || '(no output)'}`);
+  }
+}
 function bootstrapFailureProbe() {
   return new Promise((resolvePromise, reject) => {
     const args = [
@@ -110,12 +147,15 @@ async function main() {
   for (const key of ['POSTGRES_PORT', 'RABBITMQ_PORT', 'RABBITMQ_MANAGEMENT_PORT', 'MINIO_API_PORT', 'MINIO_CONSOLE_PORT']) env[key] = String(await port());
   await writeFile(resolve(directory, '.env'), Object.entries(env).map(([key, value]) => `${key}=${value}`).join('\n'), { mode: 0o600 });
   created = true;
+  stage = 'postgres-start';
   await docker(['up', '-d', '--wait', '--wait-timeout', '180', 'postgres']);
+  stage = 'bootstrap-error-stop';
   const bootstrapProbe = await bootstrapFailureProbe();
   assert.notEqual(bootstrapProbe.code, 0);
   assert(!bootstrapProbe.stdout.includes('should_not_run'));
   assert.match(bootstrapProbe.stderr, /division by zero/i);
   pass('psql bootstrap dừng ngay và trả mã lỗi khi SQL thất bại');
+  stage = 'migrations';
   const files = Object.fromEntries(await Promise.all(services.map(async service => [service, await migrationFiles(service)])));
   await Promise.all([migrate('identity', databaseUrl(env, 'identity'), files.identity), migrate('identity', databaseUrl(env, 'identity'), files.identity)]);
   pass('hai runner đồng thời chỉ áp dụng V001 một lần');
@@ -124,6 +164,7 @@ async function main() {
     await migrate(service, databaseUrl(env, service), files[service]);
   }
   pass('cài mới và chạy lại cả 5 migration');
+  stage = 'schema-and-constraints';
   const counts = [8, 18, 4, 17, 12]; let fks = 0;
   for (const [index, service] of services.entries()) await db(service, async client => {
     assert.equal((await client.query("SELECT count(*)::int AS n FROM pg_tables WHERE schemaname='public'")).rows[0].n, counts[index]);
@@ -135,6 +176,7 @@ async function main() {
     await client.query(await readFile(resolve(root, 'apps', apps.find(a => a.service === service).name, 'tests/database/V001_constraints.sql'), 'utf8'));
   });
   pass('3 fixture constraint hiện có (ROLLBACK)');
+  stage = 'database-isolation';
   for (const source of services) for (const target of services.filter(s => s !== source)) {
     const url = new URL(databaseUrl(env, source)); url.pathname = `/${target}_db`;
     const client = new pg.Client({ connectionString: url.href, connectionTimeoutMillis: 2000 });
@@ -145,6 +187,7 @@ async function main() {
   const wrongPassword = new URL(databaseUrl(env, 'identity')); wrongPassword.password = 'wrong-password';
   await assert.rejects(connectDatabase('identity', wrongPassword.href), error => error.code === '28P01');
   pass('sai database/role và mật khẩu đều bị chặn');
+  stage = 'migration-failure-cases';
   await db('travel', async client => {
     await client.query('SELECT pg_advisory_lock(1464814674, 1)');
     try { await assert.rejects(migrate('travel', databaseUrl(env, 'travel'), files.travel, 200), /MIGRATION_LOCK_TIMEOUT/); }
@@ -162,6 +205,7 @@ async function main() {
     finally { await client.query('ALTER TABLE saved_migrations RENAME TO schema_migrations'); }
   }); pass('rollback migration lỗi; từ chối lịch sử lạ và schema chưa đánh phiên bản');
 
+  stage = 'database-provider';
   const config = databaseConfig({ DATABASE_URL: databaseUrl(env, 'travel') }, 'travel');
   provider = new DatabaseProvider(new pg.Pool(config), config, 'travel');
   await provider.query('CREATE TABLE provider_probe(value bigint, precise numeric)');
@@ -170,25 +214,33 @@ async function main() {
   assert.deepEqual((await provider.query('SELECT * FROM provider_probe')).rows, [{ value: '9007199254740993', precise: '12.34' }]);
   assert.equal(provider.pool.totalCount, provider.pool.idleCount);
   pass('provider commit/rollback, bigint/numeric chính xác, trả connection về pool');
+  stage = 'app-startup-readiness';
   await launchApps();
   for (const app of apps.filter(a => a.service)) await health(app, 'ready');
   pass('7 liveness, 5 readiness trên cổng thử nghiệm');
+  stage = 'missing-migration-readiness';
   const travel = apps.find(a => a.service === 'travel');
   await db('travel', async client => {
     await client.query('ALTER TABLE schema_migrations RENAME TO saved_migrations');
     try { assert.equal((await health(travel, 'ready', 503)).checks.migrations, 'missing'); }
     finally { await client.query('ALTER TABLE saved_migrations RENAME TO schema_migrations'); }
   }); pass('thiếu migration trả HTTP 503');
+  stage = 'paused-database-readiness';
   await docker(['pause', 'postgres']);
   try {
     await Promise.all(Array.from({ length: 10 }, () => health(travel, 'ready', 503)));
     await health(travel, 'live');
   } finally { await docker(['unpause', 'postgres']); }
   pass('DB treo: 10 readiness đồng thời hoàn tất <3 giây, liveness vẫn sống');
+  stage = 'database-outage-readiness';
   await provider.onApplicationShutdown(); provider = undefined;
+  console.log('db:test: cố ý dừng PostgreSQL để kiểm tra outage/recovery.');
   await docker(['stop', 'postgres']);
   for (const app of apps.filter(a => a.service)) await health(app, 'ready', 503);
-  await docker(['up', '-d', '--wait', '--wait-timeout', '180', 'postgres']);
+  stage = 'database-restart';
+  await docker(['start', 'postgres']);
+  await waitForDatabase('identity');
+  stage = 'database-recovery-readiness';
   for (const app of apps.filter(a => a.service)) await health(app, 'ready');
   await db('travel', async client => {
     assert.equal((await client.query('SELECT count(*)::int AS n FROM provider_probe')).rows[0].n, 1);
@@ -198,7 +250,11 @@ async function main() {
 }
 
 try { await main(); }
-catch (error) { console.error('FAIL db:test:', safeError(error), error instanceof assert.AssertionError ? error.message : ''); process.exitCode = 1; }
+catch (error) {
+  console.error(`FAIL db:test [${stage}]:`, safeError(error), error instanceof assert.AssertionError ? error.message : '');
+  await reportDockerDiagnostics();
+  process.exitCode = 1;
+}
 finally {
   await Promise.all(children.map(child => new Promise(resolve => {
     if (child.exitCode !== null) { resolve(); return; }
