@@ -55,7 +55,11 @@ async function compareGenerated(expectedRoot) {
       readFile(resolve(expectedRoot, name)),
       readFile(resolve(committedRoot, name)),
     ]);
-    if (!expected.equals(committed)) throw new Error(`GENERATED_DRIFT: ${name}`);
+    // Git may check out committed text with CRLF on Windows; generators write LF.
+    const normalizeLineEndings = bytes => bytes.toString('utf8').replace(/\r\n/g, '\n');
+    if (normalizeLineEndings(expected) !== normalizeLineEndings(committed)) {
+      throw new Error(`GENERATED_DRIFT: ${name}`);
+    }
   }
 }
 
